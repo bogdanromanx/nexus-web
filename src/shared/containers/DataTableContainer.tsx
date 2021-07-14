@@ -24,7 +24,10 @@ import {
 import '../styles/data-table.less';
 
 import { useAccessDataForTable } from '../hooks/useAccessDataForTable';
-import EditTableForm, { TableComponent } from '../components/EditTableForm';
+import EditTableForm, {
+  Projection,
+  TableComponent,
+} from '../components/EditTableForm';
 import { useMutation } from 'react-query';
 import { parseProjectUrl } from '../utils';
 import useNotification from '../hooks/useNotification';
@@ -46,6 +49,7 @@ export type TableResource = Resource<{
     '@id': string;
   };
   view: string;
+  projection: Projection;
   enableSearch: boolean;
   enableInteractiveRows: boolean;
   enableDownload: boolean;
@@ -332,7 +336,7 @@ const DataTableContainer: React.FC<DataTableProps> = ({
             visible={showEditForm}
             footer={null}
             onCancel={() => setShowEditForm(false)}
-            width={800}
+            width={950}
             destroyOnClose={true}
           >
             {tableData.tableResult.isSuccess ? (

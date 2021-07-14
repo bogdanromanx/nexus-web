@@ -4,7 +4,12 @@ import { useNexusContext } from '@bbp/react-nexus';
 import { Form, Input, Button, Spin, Checkbox, Row, Col, Select } from 'antd';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import { IInstance } from 'react-codemirror2/index';
-import { Resource, DEFAULT_ELASTIC_SEARCH_VIEW_ID } from '@bbp/nexus-sdk';
+import {
+  Resource,
+  DEFAULT_ELASTIC_SEARCH_VIEW_ID,
+  View,
+  CompositeView,
+} from '@bbp/nexus-sdk';
 import { useQuery } from 'react-query';
 import ColumnConfig from './ColumnConfig';
 import {
@@ -49,6 +54,7 @@ export type TableComponent = Resource<{
     '@id': string;
   };
   view: string;
+  projection: Projection;
   enableSearch: boolean;
   enableInteractiveRows: boolean;
   enableDownload: boolean;
@@ -57,6 +63,22 @@ export type TableComponent = Resource<{
   dataQuery: string;
   configuration: TableColumn | TableColumn[];
 }>;
+
+export type Projection =
+  | {
+      '@id':
+        | string
+        | (string & ['SparqlView', 'View'])
+        | (string & ['AggregatedElasticSearchView', 'View'])
+        | (string & ['AggregatedSparqlView', 'View']);
+      '@type':
+        | string
+        | string[]
+        | ((string | string[] | undefined) & ['ElasticSearchView', 'View'])
+        | ((string | string[] | undefined) & ['CompositeView', 'Beta', 'View'])
+        | undefined;
+    }
+  | undefined;
 
 const PAGES_OPTIONS = [5, 10, 20, 50, 100];
 
@@ -101,6 +123,46 @@ const EditTableForm: React.FC<{
   >(table.configuration);
 
   const nexus = useNexusContext();
+
+  const [projectionId, setProjectionId] = React.useState<string>();
+
+  /* Available views for project */
+  const [availableViews, setAvailableViews] = React.useState<View[]>();
+
+  const initializeAvailableViews = async () =>
+    setAvailableViews((await nexus.View.list(orgLabel, projectLabel))._results);
+
+  // set the available views on l oad
+  React.useEffect(() => {
+    (async () => {
+      await initializeAvailableViews();
+      initializeSelectedView(table.view);
+      setProjectionId(table.projection?.['@id']);
+    })();
+  }, []);
+
+  /* get view details to have the available projections */
+  const [selectedViewDetails, setSelectedViewDetails] = React.useState<View>();
+
+  const initializeSelectedView = async (viewId: string) => {
+    const viewDetails = await getView(viewId);
+    setSelectedViewDetails(viewDetails);
+  };
+
+  const getView = async (viewId: string) =>
+    await nexus.View.get(orgLabel, projectLabel, encodeURIComponent(viewId));
+
+  /* when the selected view details changes, set the default query appropriately */
+  React.useEffect(() => {
+    const viewTypes = [selectedViewDetails?.['@type']].flat();
+    if (viewTypes.includes('SparqlView')) {
+      setDataQuery(DEFAULT_SPARQL_QUERY);
+      setQueryCopy(DEFAULT_SPARQL_QUERY);
+    } else if (viewTypes.includes('ElasticSearchView')) {
+      setDataQuery(DEFAULT_ES_QUERY);
+      setQueryCopy(DEFAULT_ES_QUERY);
+    }
+  }, [selectedViewDetails]);
 
   const updateColumConfig = useQuery(
     [view, dataQuery],
@@ -172,11 +234,22 @@ const EditTableForm: React.FC<{
     if (isEmptyInput(name)) {
       setNameError(true);
     } else {
+      const projection =
+        selectedViewDetails &&
+        selectedViewDetails.projections &&
+        (selectedViewDetails?.projections as {
+          '@id': string;
+          '@type': string;
+        }[])
+          .map(o => ({ '@id': o['@id'], '@type': o['@type'] }))
+          .find(o => o['@id'] === projectionId);
+
       const data = {
         ...table,
         name,
         description,
         view,
+        projection,
         enableSearch,
         enableInteractiveRows,
         enableDownload,
@@ -252,15 +325,6 @@ const EditTableForm: React.FC<{
     [configuration, updateColumConfig, updateColumnConfigArray]
   );
 
-  const viewLabel = (view: string) => {
-    if (view !== ViewOptions.ES_VIEW && view !== ViewOptions.SPARQL_VIEW) {
-      return view === DEFAULT_ELASTIC_SEARCH_VIEW_ID
-        ? ViewOptions.ES_VIEW
-        : ViewOptions.SPARQL_VIEW;
-    }
-    return view;
-  };
-
   return (
     <Form className="edit-table-form">
       <h2 className="edit-table-form__title">Edit Table</h2>
@@ -300,27 +364,47 @@ const EditTableForm: React.FC<{
           </Col>
           <Col xs={12} sm={12} md={12}>
             <Select
-              value={viewLabel(view)}
-              style={{ width: 220 }}
+              value={view}
+              style={{ width: 650 }}
               onChange={value => {
-                setView(value);
-                if (value === ViewOptions.ES_VIEW) {
-                  setDataQuery(DEFAULT_ES_QUERY);
-                  setQueryCopy(DEFAULT_ES_QUERY);
-                } else {
-                  setDataQuery(DEFAULT_SPARQL_QUERY);
-                  setQueryCopy(DEFAULT_SPARQL_QUERY);
-                }
+                value && setView(value);
+                initializeSelectedView(value);
               }}
             >
-              {Object.values(ViewOptions).map(view => (
-                <Option key={view} value={view}>
-                  {viewLabel(view)}
-                </Option>
-              ))}
+              {availableViews &&
+                availableViews.map(view => (
+                  <Option key={view['@id']} value={view['@id']}>
+                    {view['@id']}
+                  </Option>
+                ))}
             </Select>
           </Col>
         </Row>
+        {selectedViewDetails && selectedViewDetails.projections && (
+          <Row>
+            <Col xs={6} sm={6} md={6}>
+              <h3>Projection</h3>
+            </Col>
+            <Col>
+              <Select
+                style={{ width: 650 }}
+                value={projectionId}
+                onChange={value => {
+                  setProjectionId(value);
+                }}
+              >
+                {(selectedViewDetails.projections as {
+                  '@id': string;
+                  '@type': string;
+                }[]).map(o => (
+                  <Option key={o['@id']} value={o['@id']}>
+                    {o['@id']}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+          </Row>
+        )}
         <div className="edit-table-form__actions">
           <h3 className="edit-table-form__actions-title">Actions</h3>
           <div className="edit-table-form__action-items">

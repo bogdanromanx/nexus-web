@@ -21,6 +21,7 @@ export type TableResource = Resource<{
     '@id': string;
   };
   view: string;
+  projection: { '@id': string; '@type': string };
   enableSearch: boolean;
   enableInteractiveRows: boolean;
   enableDownload: boolean;
@@ -104,12 +105,14 @@ const sorter = (dataIndex: string) => {
 export async function querySparql(
   nexus: NexusClient,
   dataQuery: string,
-  view: View
+  view: View,
+  projectionId?: string
 ) {
   const result = await sparqlQueryExecutor(
     nexus,
     dataQuery,
-    view as SparqlView
+    view as SparqlView,
+    projectionId
   );
 
   const headerProperties = result.headerProperties;
@@ -142,6 +145,7 @@ export const queryES = async (
   orgLabel: string,
   projectLabel: string,
   viewId: string,
+  projectionId?: string,
   sort?: TableSort
 ) => {
   const body = bodybuilder();
@@ -166,15 +170,26 @@ export const queryES = async (
 
   const bodyQuery = body.build();
 
-  return await nexus.View.elasticSearchQuery(
-    orgLabel,
-    projectLabel,
-    encodeURIComponent(viewId),
-    {
-      ...bodyQuery,
-      ...query,
-    }
-  );
+  return projectionId
+    ? await nexus.View.compositeElasticSearchQuery(
+        orgLabel,
+        projectLabel,
+        encodeURIComponent(viewId),
+        encodeURIComponent(projectionId),
+        {
+          ...bodyQuery,
+          ...query,
+        }
+      )
+    : await nexus.View.elasticSearchQuery(
+        orgLabel,
+        projectLabel,
+        encodeURIComponent(viewId),
+        {
+          ...bodyQuery,
+          ...query,
+        }
+      );
 };
 
 const accessData = async (
@@ -186,13 +201,18 @@ const accessData = async (
 ) => {
   const dataQuery: string = tableResource.dataQuery;
   const columnConfig = tableResource.configuration as TableColumn[];
-  if (view['@type']?.includes('ElasticSearchView')) {
+  if (
+    view['@type']?.includes('ElasticSearchView') ||
+    (tableResource.projection &&
+      tableResource.projection['@type'].includes('ElasticSearchProjection'))
+  ) {
     const result = await queryES(
       JSON.parse(dataQuery),
       nexus,
       orgLabel,
       projectLabel,
-      view['@id']
+      view['@id'],
+      tableResource.projection && tableResource.projection['@id']
     );
 
     const { items, total } = parseESResults(result);
@@ -215,24 +235,36 @@ const accessData = async (
       .sort((a, b) => (a.title > b.title ? 1 : 0));
 
     return { items, total, tableResource, view, headerProperties };
-  }
-  const result = await querySparql(nexus, dataQuery, view);
-  const headerProperties: {
-    title: string;
-    dataIndex: string;
-    sorter?: (dataIndex: string) => any;
-  }[] = result.headerProperties.map(headerProp => {
-    const currentConfig = columnConfig.find(c => c.name === headerProp.title);
-    if (currentConfig && currentConfig.enableSort) {
-      return {
-        ...headerProp,
-        sorter,
-      };
-    }
-    return headerProp;
-  });
+  } else if (
+    view['@type']?.includes('SparqlView') ||
+    (tableResource.projection &&
+      tableResource.projection['@type'].includes('SparqlProjection'))
+  ) {
+    const result = await querySparql(
+      nexus,
+      dataQuery,
+      view,
+      tableResource.projection && tableResource.projection['@id']
+    );
+    const headerProperties: {
+      title: string;
+      dataIndex: string;
+      sorter?: (dataIndex: string) => any;
+    }[] = result.headerProperties.map(headerProp => {
+      const currentConfig = columnConfig.find(c => c.name === headerProp.title);
+      if (currentConfig && currentConfig.enableSort) {
+        return {
+          ...headerProp,
+          sorter,
+        };
+      }
+      return headerProp;
+    });
 
-  return { ...result, headerProperties, tableResource };
+    return { ...result, headerProperties, tableResource };
+  }
+
+  return {};
 };
 
 export const useAccessDataForTable = (
