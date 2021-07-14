@@ -153,11 +153,11 @@ export const queryES = async (
   const PAGE_SIZE = 10000;
   const PAGE_START = 0;
 
-  body
-    .filter('term', '_deprecated', false)
-    .size(PAGE_SIZE)
-    .from(PAGE_START)
-    .rawOption('track_total_hits', TOTAL_HITS_TRACKING);
+  /* removed as causing issues */
+  // body.filter('term', '_deprecated', false);
+  // .size(PAGE_SIZE)
+  // .from(PAGE_START)
+  // .rawOption('track_total_hits', TOTAL_HITS_TRACKING);
 
   // Sorting
   if (Array.isArray(sort)) {
@@ -216,7 +216,6 @@ const accessData = async (
     );
 
     const { items, total } = parseESResults(result);
-
     const fields =
       columnConfig.map((x, index) => ({
         title: x.name,
