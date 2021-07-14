@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button } from 'antd';
+import { Button, Modal } from 'antd';
 import { Resource, DEFAULT_SPARQL_VIEW_ID, NexusClient } from '@bbp/nexus-sdk';
 import { useNexusContext } from '@bbp/react-nexus';
 import useNotification from '../../../shared/hooks/useNotification';
@@ -11,6 +11,8 @@ import CreateDashboardContainer from './DashBoardEditor/CreateDashboardContainer
 import useQueryString from '../../../shared/hooks/useQueryString';
 import { resourcesWritePermissionsWrapper } from '../../../shared/utils/permission';
 import { ResultTableFields } from '../../../shared/types/search';
+import DataTableContainer from '../../../shared/containers/DataTableContainer';
+import NewTableContainer from '../../projects/containers/NewTableContainer';
 
 const removeDashBoard = async (
   nexus: NexusClient,
@@ -106,6 +108,10 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
       dashboardId,
     });
   };
+
+  const [showNewTableForm, setShowNewTableForm] = React.useState<boolean>(
+    false
+  );
 
   const fetchAndSetupDashboards = () => {
     Promise.all(
@@ -213,7 +219,7 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
   const OnEdit = React.useCallback(
     async (e, action) => {
       if (action === 'add') {
-        setShowCreateModal(true);
+        setShowNewTableForm(true);
       } else {
         if (workspaceId && refreshList) {
           const index = e.toString();
@@ -281,32 +287,39 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
         position="left"
         activeKey={`${selectedDashboardResourcesIndex}`}
         tabAction={resourcesWritePermissionsWrapper(tabAction, permissionsPath)}
-        editButton={editButtonWrapper}
         OnEdit={OnEdit}
       >
         {!!dashboardResources.length &&
           !!dashboardResources[selectedDashboardResourcesIndex] && (
-            <DashboardResultsContainer
-              orgLabel={orgLabel}
-              projectLabel={projectLabel}
-              dashboardLabel={
-                dashboardResources[selectedDashboardResourcesIndex].label
-              }
-              key={dashboardId}
-              viewId={
-                (dashboards[selectedDashboardIndex] &&
-                  dashboards[selectedDashboardIndex].view) ||
-                DEFAULT_SPARQL_VIEW_ID
-              }
-              fields={
-                dashboardResources[selectedDashboardResourcesIndex].fields
-              }
-              dataQuery={
-                dashboardResources[selectedDashboardResourcesIndex].dataQuery
-              }
-            />
+            <>
+              <DataTableContainer
+                orgLabel={orgLabel}
+                projectLabel={projectLabel}
+                tableResourceId={
+                  dashboardResources[selectedDashboardResourcesIndex][
+                    'fusionDataTableId'
+                  ]
+                }
+                key={`data-table-${dashboardResources[selectedDashboardResourcesIndex]['fusionDataTableId']}}`}
+              />
+            </>
           )}
       </TabList>
+      <Modal
+        visible={showNewTableForm}
+        footer={null}
+        onCancel={() => setShowNewTableForm(false)}
+        width={400}
+        destroyOnClose={true}
+      >
+        <NewTableContainer
+          orgLabel={orgLabel}
+          projectLabel={projectLabel}
+          parentId={'notsurewhattosetthistoyet'}
+          onClickClose={() => setShowNewTableForm(false)}
+          onSuccess={() => console.log('i should really do something')}
+        />
+      </Modal>
     </>
   );
 };

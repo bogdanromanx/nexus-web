@@ -155,16 +155,32 @@ const EditTableForm: React.FC<{
   /* when the selected view details changes, set the default query appropriately */
   React.useEffect(() => {
     const viewTypes = [selectedViewDetails?.['@type']].flat();
-    if (viewTypes.includes('SparqlView')) {
+    const projection =
+      selectedViewDetails &&
+      selectedViewDetails.projections &&
+      (selectedViewDetails?.projections as {
+        '@id': string;
+        '@type': string;
+      }[])
+        .map(o => ({ '@id': o['@id'], '@type': o['@type'] }))
+        .find(o => o['@id'] === projectionId);
+
+    if (
+      viewTypes.includes('SparqlView') ||
+      (projection && projection['@type'].includes('SparqlProjection'))
+    ) {
       setDataQuery(DEFAULT_SPARQL_QUERY);
       setQueryCopy(DEFAULT_SPARQL_QUERY);
-    } else if (viewTypes.includes('ElasticSearchView')) {
+    } else if (
+      viewTypes.includes('ElasticSearchView') ||
+      (projection && projection['@type'].includes('ElasticSearchProjection'))
+    ) {
       setDataQuery(DEFAULT_ES_QUERY);
       setQueryCopy(DEFAULT_ES_QUERY);
     }
-  }, [selectedViewDetails]);
+  }, [selectedViewDetails, projectionId]);
 
-  const updateColumConfig = useQuery(
+  const queryColumnConfig = useQuery(
     [view, dataQuery],
     async () => {
       const viewResource = await nexus.View.get(
@@ -172,13 +188,27 @@ const EditTableForm: React.FC<{
         projectLabel,
         encodeURIComponent(view)
       );
-      if (viewResource['@type']?.includes('ElasticSearchView')) {
+
+      const projection =
+        selectedViewDetails &&
+        selectedViewDetails.projections &&
+        (selectedViewDetails?.projections as {
+          '@id': string;
+          '@type': string;
+        }[])
+          .map(o => ({ '@id': o['@id'], '@type': o['@type'] }))
+          .find(o => o['@id'] === projectionId);
+      if (
+        viewResource['@type']?.includes('ElasticSearchView') ||
+        (projection && projection['@type'].includes('ElasticSearchProjection'))
+      ) {
         const result = await queryES(
           JSON.parse(dataQuery),
           nexus,
           orgLabel,
           projectLabel,
-          viewResource['@id']
+          viewResource['@id'],
+          projectionId
         );
 
         const { items } = parseESResults(result);
@@ -194,21 +224,32 @@ const EditTableForm: React.FC<{
           enableSort: false,
           enableFilter: false,
         }));
-      }
-      const result = await querySparql(nexus, dataQuery, viewResource);
+      } else if (
+        viewResource['@type']?.includes('SparqlView') ||
+        (projection && projection['@type'].includes('SparqlProjection'))
+      ) {
+        const result = await querySparql(
+          nexus,
+          dataQuery,
+          viewResource,
+          projectionId
+        );
 
-      return result.headerProperties
-        .sort((a, b) => {
-          return a.title > b.title ? 1 : -1;
-        })
-        .map(x => ({
-          '@type': 'text',
-          name: x.dataIndex,
-          format: '',
-          enableSearch: false,
-          enableSort: false,
-          enableFilter: false,
-        }));
+        return result.headerProperties
+          .sort((a, b) => {
+            return a.title > b.title ? 1 : -1;
+          })
+          .map(x => ({
+            '@type': 'text',
+            name: x.dataIndex,
+            format: '',
+            enableSearch: false,
+            enableSort: false,
+            enableFilter: false,
+          }));
+      } else {
+        return [] as TableColumn[];
+      }
     },
     {
       onSuccess: data => {
@@ -322,7 +363,7 @@ const EditTableForm: React.FC<{
         <ColumnConfig column={configuration} onChange={updateColumnConfig} />
       );
     },
-    [configuration, updateColumConfig, updateColumnConfigArray]
+    [configuration, queryColumnConfig, updateColumnConfigArray]
   );
 
   return (
@@ -476,7 +517,7 @@ const EditTableForm: React.FC<{
           />
         </div>
         <div>
-          {updateColumConfig.isLoading ? (
+          {queryColumnConfig.isLoading ? (
             <Spin></Spin>
           ) : (
             <Button onClick={onClickPreview} type="primary">
