@@ -203,6 +203,7 @@ const accessData = async (
   const columnConfig = tableResource.configuration as TableColumn[];
   if (
     view['@type']?.includes('ElasticSearchView') ||
+    view['@type']?.includes('AggregateElasticSearchView') ||
     (tableResource.projection &&
       tableResource.projection['@type'].includes('ElasticSearchProjection'))
   ) {
@@ -236,6 +237,7 @@ const accessData = async (
     return { items, total, tableResource, view, headerProperties };
   } else if (
     view['@type']?.includes('SparqlView') ||
+    view['@type']?.includes('AggregateSparqlView') ||
     (tableResource.projection &&
       tableResource.projection['@type'].includes('SparqlProjection'))
   ) {
@@ -285,7 +287,14 @@ export const useAccessDataForTable = (
     setSelectedRows(selectedRowKeys);
     if (
       dataResult?.data?.view &&
-      dataResult?.data?.view['@type']?.includes('ElasticSearchView')
+      (dataResult?.data?.view['@type']?.includes('ElasticSearchView') ||
+        dataResult?.data?.view['@type']?.includes(
+          'AggregateElasticSearchView'
+        ) ||
+        (tableResource?.projection &&
+          tableResource.projection['@type'].includes(
+            'ElasticSearchProjection'
+          )))
     ) {
       setSelectedResources(selectedRows);
     } else {
