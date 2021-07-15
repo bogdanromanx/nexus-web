@@ -89,7 +89,12 @@ const DataTableContainer: React.FC<DataTableProps> = ({
         headers: { Accept: 'application/json' },
       })
       .then((resource: Resource) => {
+        if (resource['@type'] === 'Project') {
+          return;
+        }
+
         const [orgLabel, projectLabel] = parseProjectUrl(resource._project);
+
         history.push(
           `/${orgLabel}/${projectLabel}/resources/${encodeURIComponent(
             resource['@id']
