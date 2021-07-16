@@ -24,10 +24,7 @@ import {
 import '../styles/data-table.less';
 
 import { useAccessDataForTable } from '../hooks/useAccessDataForTable';
-import EditTableForm, {
-  Projection,
-  TableComponent,
-} from '../components/EditTableForm';
+import EditTableForm, { Projection } from '../components/EditTableForm';
 import { useMutation } from 'react-query';
 import { parseProjectUrl } from '../utils';
 import useNotification from '../hooks/useNotification';
@@ -42,6 +39,7 @@ export type TableColumn = {
 };
 
 export type TableResource = Resource<{
+  '@id': string;
   '@type': string;
   name: string;
   description: string;
@@ -58,6 +56,25 @@ export type TableResource = Resource<{
   dataQuery: string;
   configuration: TableColumn | TableColumn[];
 }>;
+
+export type UnsavedTableResource = {
+  '@type': 'FusionTable';
+  '@context': string;
+  name: string;
+  description: string;
+  tableOf?: {
+    '@id': string;
+  };
+  view: string;
+  projection: Projection;
+  enableSearch: boolean;
+  enableInteractiveRows: boolean;
+  enableDownload: boolean;
+  enableSave: boolean;
+  resultsPerPage: number;
+  dataQuery: string;
+  configuration: TableColumn | TableColumn[];
+};
 
 type DataTableProps = {
   orgLabel: string;
@@ -145,26 +162,35 @@ const DataTableContainer: React.FC<DataTableProps> = ({
     },
   });
 
-  const latestResource = async (data: TableComponent) => {
+  const latestResource = async (data: TableResource) => {
     return (await nexus.Resource.get(
       orgLabel,
       projectLabel,
       encodeURIComponent(data['@id'])
     )) as Resource;
   };
-  const updateTable = async (data: TableComponent) => {
-    const latest = await latestResource(data);
-    return nexus.Resource.update(
-      orgLabel,
-      projectLabel,
-      encodeURIComponent(data['@id']),
-      latest._rev,
-      { ...latest, ...data }
-    );
+  const updateTable = async (data: TableResource | UnsavedTableResource) => {
+    if ('@id' in data) {
+      const latest = await latestResource(data);
+      return nexus.Resource.update(
+        orgLabel,
+        projectLabel,
+        encodeURIComponent(data['@id']),
+        latest._rev,
+        { ...latest, ...data }
+      );
+    } else {
+      const resource = await nexus.Resource.create(
+        orgLabel,
+        projectLabel,
+        data
+      );
+      return resource;
+    }
   };
 
   const changeTableResource = useMutation(updateTable, {
-    onMutate: (data: TableResource) => {},
+    onMutate: (data: TableResource | UnsavedTableResource) => {},
     onSuccess: data => {
       setShowEditForm(false);
     },
@@ -184,7 +210,7 @@ const DataTableContainer: React.FC<DataTableProps> = ({
 
   const renderTitle = () => {
     const tableResource = tableData.tableResult.data
-      ?.tableResource as TableComponent;
+      ?.tableResource as TableResource;
     const content = (
       <div className="wrapper">
         <div>

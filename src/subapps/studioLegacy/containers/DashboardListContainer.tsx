@@ -5,14 +5,18 @@ import { useNexusContext } from '@bbp/react-nexus';
 import useNotification from '../../../shared/hooks/useNotification';
 import TabList from '../../../shared/components/Tabs/TabList';
 import { StudioContext } from '../views/StudioView';
-import DashboardResultsContainer from './DashboardResultsContainer';
 import DashboardEditorContainer from './DashBoardEditor/DashboardEditorContainer';
 import CreateDashboardContainer from './DashBoardEditor/CreateDashboardContainer';
 import useQueryString from '../../../shared/hooks/useQueryString';
 import { resourcesWritePermissionsWrapper } from '../../../shared/utils/permission';
 import { ResultTableFields } from '../../../shared/types/search';
-import DataTableContainer from '../../../shared/containers/DataTableContainer';
-import NewTableContainer from '../../projects/containers/NewTableContainer';
+import DataTableContainer, {
+  TableResource,
+  UnsavedTableResource,
+} from '../../../shared/containers/DataTableContainer';
+import EditTableForm from '../../../shared/components/EditTableForm';
+import STUDIO_CONTEXT from '../../studioLegacy/components/StudioContext';
+const DASHBOARD_TYPE = 'StudioDashboard';
 
 const removeDashBoard = async (
   nexus: NexusClient,
@@ -109,9 +113,88 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
     });
   };
 
-  const [showNewTableForm, setShowNewTableForm] = React.useState<boolean>(
+  const [showEditTableForm, setShowEditTableForm] = React.useState<boolean>(
     false
   );
+
+  const saveDashboardAndDataTable = async (
+    table: TableResource | UnsavedTableResource,
+    dashboardId?: number
+  ) => {
+    /*
+    dashboard resource looks like this:
+
+        {
+          "@context": "https://bluebrainnexus.io/studio/context",
+          "@type": "StudioDashboard",
+          "dataTable": {
+            "@id": "myDataTableID"
+          },
+          "label": "DashboardA"
+        }
+
+      We will set dataTable @id to the ID of the data table and then we only need to set dashboard label
+
+    */
+    try {
+      console.log(table);
+      if (!workspaceId) throw new Error();
+
+      if (dashboardId) {
+        // we already have a dashboard and presumably table, lets update it
+      } else {
+        // create table
+        const resource = (await nexus.Resource.create(
+          orgLabel,
+          projectLabel,
+          table
+        )) as TableResource;
+        const tableId = resource['@id'];
+
+        // create dashboard, linking it to the table
+        const dashboard = await nexus.Resource.create(orgLabel, projectLabel, {
+          '@context': STUDIO_CONTEXT['@id'],
+          '@type': DASHBOARD_TYPE,
+          dataTable: {
+            '@id': tableId,
+          },
+          label: table.name,
+          dataQuery: '',
+        });
+        // Add dashboard to workspace
+        const workspace = (await nexus.Resource.get<Resource>(
+          orgLabel,
+          projectLabel,
+          encodeURIComponent(workspaceId)
+        )) as Resource;
+        const workspaceSource = await nexus.Resource.getSource<{
+          [key: string]: any;
+        }>(orgLabel, projectLabel, encodeURIComponent(workspaceId));
+        if (workspace) {
+          await nexus.Resource.update(
+            orgLabel,
+            projectLabel,
+            encodeURIComponent(workspaceId),
+            workspace._rev,
+            {
+              ...workspaceSource,
+              dashboards: [
+                ...workspaceSource.dashboards,
+                {
+                  dashboard: dashboard['@id'],
+                  view: 'graph',
+                },
+              ],
+            }
+          );
+        }
+      }
+      setShowEditTableForm(false);
+      if (refreshList) refreshList();
+    } catch (e) {
+      console.log('failed to save/create dashboard');
+    }
+  };
 
   const fetchAndSetupDashboards = () => {
     Promise.all(
@@ -219,7 +302,7 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
   const OnEdit = React.useCallback(
     async (e, action) => {
       if (action === 'add') {
-        setShowNewTableForm(true);
+        setShowEditTableForm(true);
       } else {
         if (workspaceId && refreshList) {
           const index = e.toString();
@@ -297,27 +380,30 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
                 projectLabel={projectLabel}
                 tableResourceId={
                   dashboardResources[selectedDashboardResourcesIndex][
-                    'fusionDataTableId'
-                  ]
+                    'dataTable'
+                  ]['@id']
                 }
-                key={`data-table-${dashboardResources[selectedDashboardResourcesIndex]['fusionDataTableId']}}`}
+                key={`data-table-${dashboardResources[selectedDashboardResourcesIndex]['dataTable']['@id']}}`}
               />
             </>
           )}
       </TabList>
       <Modal
-        visible={showNewTableForm}
+        visible={showEditTableForm}
         footer={null}
-        onCancel={() => setShowNewTableForm(false)}
-        width={400}
+        onCancel={() => setShowEditTableForm(false)}
+        width={950}
         destroyOnClose={true}
       >
-        <NewTableContainer
+        <EditTableForm
+          onSave={data => {
+            saveDashboardAndDataTable(data);
+          }}
+          onClose={() => setShowEditTableForm(false)}
+          busy={false}
           orgLabel={orgLabel}
           projectLabel={projectLabel}
-          parentId={'notsurewhattosetthistoyet'}
-          onClickClose={() => setShowNewTableForm(false)}
-          onSuccess={() => console.log('i should really do something')}
+          formName="Create Dashboard"
         />
       </Modal>
     </>
