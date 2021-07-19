@@ -80,6 +80,8 @@ type DataTableProps = {
   orgLabel: string;
   projectLabel: string;
   tableResourceId: string;
+  onSave?: (data: TableResource | UnsavedTableResource) => void;
+  options: { disableDelete: boolean };
 };
 
 const { Title } = Typography;
@@ -88,6 +90,8 @@ const DataTableContainer: React.FC<DataTableProps> = ({
   orgLabel,
   projectLabel,
   tableResourceId,
+  onSave,
+  options,
 }) => {
   const [showEditForm, setShowEditForm] = React.useState<boolean>(false);
   const [searchboxValue, setSearchboxValue] = React.useState<string>('');
@@ -190,7 +194,9 @@ const DataTableContainer: React.FC<DataTableProps> = ({
   };
 
   const changeTableResource = useMutation(updateTable, {
-    onMutate: (data: TableResource | UnsavedTableResource) => {},
+    onMutate: (data: TableResource | UnsavedTableResource) => {
+      onSave && onSave(data);
+    },
     onSuccess: data => {
       setShowEditForm(false);
     },
@@ -208,7 +214,7 @@ const DataTableContainer: React.FC<DataTableProps> = ({
     changeTableResource.data
   );
 
-  const renderTitle = () => {
+  const renderTitle = ({ disableDelete }: { disableDelete: boolean }) => {
     const tableResource = tableData.tableResult.data
       ?.tableResource as TableResource;
     const content = (
@@ -222,7 +228,7 @@ const DataTableContainer: React.FC<DataTableProps> = ({
               setShowEditForm(true);
             }}
           >
-            Edit Table
+            Edit
           </Button>
         </div>
         {tableResource ? (
@@ -267,17 +273,19 @@ const DataTableContainer: React.FC<DataTableProps> = ({
             </div>
           ) : null
         ) : null}
-        <div>
-          <Button
-            block
-            danger
-            icon={<DeleteOutlined />}
-            onClick={confirmDeprecate}
-          >
-            Delete
-          </Button>
-          <Modal></Modal>
-        </div>
+        {!disableDelete && (
+          <div>
+            <Button
+              block
+              danger
+              icon={<DeleteOutlined />}
+              onClick={confirmDeprecate}
+            >
+              Delete
+            </Button>
+            <Modal></Modal>
+          </div>
+        )}
       </div>
     );
     const options = (
@@ -341,7 +349,7 @@ const DataTableContainer: React.FC<DataTableProps> = ({
           <Table
             bordered
             rowClassName={'data-table-row'}
-            title={renderTitle}
+            title={() => renderTitle(options)}
             columns={tableData.dataResult.data?.headerProperties}
             dataSource={tableData.dataResult.data?.items}
             scroll={{ x: 1000 }}
@@ -370,16 +378,15 @@ const DataTableContainer: React.FC<DataTableProps> = ({
             width={950}
             destroyOnClose={true}
           >
-            {tableData.tableResult.isSuccess ? (
-              <EditTableForm
-                onSave={changeTableResource.mutate}
-                onClose={() => setShowEditForm(false)}
-                table={tableData.tableResult.data.tableResource}
-                busy={changeTableResource.isLoading}
-                orgLabel={orgLabel}
-                projectLabel={projectLabel}
-              />
-            ) : null}
+            <EditTableForm
+              onSave={changeTableResource.mutate}
+              onClose={() => setShowEditForm(false)}
+              table={tableData.tableResult.data.tableResource}
+              busy={changeTableResource.isLoading}
+              orgLabel={orgLabel}
+              projectLabel={projectLabel}
+              options={options}
+            />
           </Modal>
         </>
       ) : (

@@ -62,8 +62,9 @@ const EditTableForm: React.FC<{
   orgLabel: string;
   projectLabel: string;
   formName?: string;
+  options?: { disableDelete: boolean };
 }> = ({ onSave, onClose, table, orgLabel, projectLabel, busy, formName }) => {
-  formName = formName ? formName : 'Edit Table';
+  formName = formName ? formName : 'Edit';
   const [name, setName] = React.useState<string | undefined>(table?.name);
   const [nameError, setNameError] = React.useState<boolean>(false);
   const [description, setDescription] = React.useState<string>(
@@ -134,7 +135,7 @@ const EditTableForm: React.FC<{
     const projection =
       view &&
       view.projections &&
-      (view?.projections as {
+      (view.projections as {
         '@id': string;
         '@type': string;
       }[])
@@ -172,7 +173,7 @@ const EditTableForm: React.FC<{
       const projection =
         view &&
         view.projections &&
-        (view?.projections as {
+        (view.projections as {
           '@id': string;
           '@type': string;
         }[])
@@ -269,7 +270,7 @@ const EditTableForm: React.FC<{
     const projection =
       view &&
       view.projections &&
-      (view?.projections as {
+      (view.projections as {
         '@id': string;
         '@type': string;
       }[])

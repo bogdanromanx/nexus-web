@@ -118,81 +118,84 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
   );
 
   const saveDashboardAndDataTable = async (
-    table: TableResource | UnsavedTableResource,
-    dashboardId?: number
+    table: TableResource | UnsavedTableResource
   ) => {
-    /*
-    dashboard resource looks like this:
-
-        {
-          "@context": "https://bluebrainnexus.io/studio/context",
-          "@type": "StudioDashboard",
-          "dataTable": {
-            "@id": "myDataTableID"
-          },
-          "label": "DashboardA"
-        }
-
-      We will set dataTable @id to the ID of the data table and then we only need to set dashboard label
-
-    */
     try {
-      console.log(table);
       if (!workspaceId) throw new Error();
+      // create table
+      const resource = (await nexus.Resource.create(
+        orgLabel,
+        projectLabel,
+        table
+      )) as TableResource;
+      const tableId = resource['@id'];
 
-      if (dashboardId) {
-        // we already have a dashboard and presumably table, lets update it
-      } else {
-        // create table
-        const resource = (await nexus.Resource.create(
+      // create dashboard, linking it to the table
+      const dashboard = await nexus.Resource.create(orgLabel, projectLabel, {
+        '@context': STUDIO_CONTEXT['@id'],
+        '@type': DASHBOARD_TYPE,
+        dataTable: {
+          '@id': tableId,
+        },
+        label: table.name,
+        dataQuery: '',
+      });
+      // Add dashboard to workspace
+      const workspace = (await nexus.Resource.get<Resource>(
+        orgLabel,
+        projectLabel,
+        encodeURIComponent(workspaceId)
+      )) as Resource;
+      const workspaceSource = await nexus.Resource.getSource<{
+        [key: string]: any;
+      }>(orgLabel, projectLabel, encodeURIComponent(workspaceId));
+      if (workspace) {
+        await nexus.Resource.update(
           orgLabel,
           projectLabel,
-          table
-        )) as TableResource;
-        const tableId = resource['@id'];
-
-        // create dashboard, linking it to the table
-        const dashboard = await nexus.Resource.create(orgLabel, projectLabel, {
-          '@context': STUDIO_CONTEXT['@id'],
-          '@type': DASHBOARD_TYPE,
-          dataTable: {
-            '@id': tableId,
-          },
-          label: table.name,
-          dataQuery: '',
-        });
-        // Add dashboard to workspace
-        const workspace = (await nexus.Resource.get<Resource>(
-          orgLabel,
-          projectLabel,
-          encodeURIComponent(workspaceId)
-        )) as Resource;
-        const workspaceSource = await nexus.Resource.getSource<{
-          [key: string]: any;
-        }>(orgLabel, projectLabel, encodeURIComponent(workspaceId));
-        if (workspace) {
-          await nexus.Resource.update(
-            orgLabel,
-            projectLabel,
-            encodeURIComponent(workspaceId),
-            workspace._rev,
-            {
-              ...workspaceSource,
-              dashboards: [
-                ...workspaceSource.dashboards,
-                {
-                  dashboard: dashboard['@id'],
-                  view: 'graph',
-                },
-              ],
-            }
-          );
-        }
+          encodeURIComponent(workspaceId),
+          workspace._rev,
+          {
+            ...workspaceSource,
+            dashboards: [
+              ...workspaceSource.dashboards,
+              {
+                dashboard: dashboard['@id'],
+                view: 'graph',
+              },
+            ],
+          }
+        );
       }
+
       setShowEditTableForm(false);
       if (refreshList) refreshList();
     } catch (e) {
-      console.log('failed to save/create dashboard');
+      notification.error({ message: 'Failed to save dashboard' });
+    }
+  };
+
+  const updateDashboard = async (
+    data: TableResource | UnsavedTableResource
+  ) => {
+    if (dashboardId) {
+      const resource = await nexus.Resource.get(
+        orgLabel,
+        projectLabel,
+        encodeURIComponent(dashboardId)
+      );
+      await nexus.Resource.update(
+        orgLabel,
+        projectLabel,
+        encodeURIComponent(dashboardId),
+        dashboardResources[selectedDashboardResourcesIndex]._rev,
+        {
+          ...resource,
+          description: data.description,
+          label: data['name'],
+        }
+      );
+      if (refreshList) refreshList();
     }
   };
 
@@ -383,7 +386,9 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
                     'dataTable'
                   ]['@id']
                 }
+                onSave={updateDashboard}
                 key={`data-table-${dashboardResources[selectedDashboardResourcesIndex]['dataTable']['@id']}}`}
+                options={{ disableDelete: true }}
               />
             </>
           )}

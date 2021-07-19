@@ -68,6 +68,7 @@ const DraggableTablesContainer: React.FC<{
                 projectLabel={projectLabel}
                 tableResourceId={table['@id']}
                 key={`data-table-${table['@id']}}`}
+                options={{ disableDelete: false }}
               />
             </div>
           </DraggableTable>
