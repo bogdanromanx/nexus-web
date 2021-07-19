@@ -21,7 +21,7 @@ export type TableResource = Resource<{
     '@id': string;
   };
   view: string;
-  projection: { '@id': string; '@type': string };
+  projection: { '@id'?: string; '@type': string };
   enableSearch: boolean;
   enableInteractiveRows: boolean;
   enableDownload: boolean;
@@ -106,12 +106,14 @@ export async function querySparql(
   nexus: NexusClient,
   dataQuery: string,
   view: View,
+  hasProjection: boolean,
   projectionId?: string
 ) {
   const result = await sparqlQueryExecutor(
     nexus,
     dataQuery,
     view as SparqlView,
+    hasProjection,
     projectionId
   );
 
@@ -145,6 +147,7 @@ export const queryES = async (
   orgLabel: string,
   projectLabel: string,
   viewId: string,
+  hasProjection: boolean,
   projectionId?: string,
   sort?: TableSort
 ) => {
@@ -170,26 +173,28 @@ export const queryES = async (
 
   const bodyQuery = body.build();
 
-  return projectionId
-    ? await nexus.View.compositeElasticSearchQuery(
-        orgLabel,
-        projectLabel,
-        encodeURIComponent(viewId),
-        encodeURIComponent(projectionId),
-        {
-          ...bodyQuery,
-          ...query,
-        }
-      )
-    : await nexus.View.elasticSearchQuery(
-        orgLabel,
-        projectLabel,
-        encodeURIComponent(viewId),
-        {
-          ...bodyQuery,
-          ...query,
-        }
-      );
+  if (hasProjection) {
+    return await nexus.View.compositeElasticSearchQuery(
+      orgLabel,
+      projectLabel,
+      encodeURIComponent(viewId),
+      encodeURIComponent(projectionId || '_'),
+      {
+        ...bodyQuery,
+        ...query,
+      }
+    );
+  } else {
+    return await nexus.View.elasticSearchQuery(
+      orgLabel,
+      projectLabel,
+      encodeURIComponent(viewId),
+      {
+        ...bodyQuery,
+        ...query,
+      }
+    );
+  }
 };
 
 const accessData = async (
@@ -213,7 +218,10 @@ const accessData = async (
       orgLabel,
       projectLabel,
       view['@id'],
-      tableResource.projection && tableResource.projection['@id']
+      !!tableResource.projection,
+      tableResource.projection['@id'] === 'All_ElasticSearchProjection'
+        ? undefined
+        : tableResource.projection['@id']
     );
 
     const { items, total } = parseESResults(result);
@@ -245,7 +253,10 @@ const accessData = async (
       nexus,
       dataQuery,
       view,
-      tableResource.projection && tableResource.projection['@id']
+      !!tableResource.projection,
+      tableResource.projection['@id'] === 'All_SparqlProjection'
+        ? undefined
+        : tableResource.projection['@id']
     );
     const headerProperties: {
       title: string;

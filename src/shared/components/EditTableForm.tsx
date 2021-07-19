@@ -39,7 +39,8 @@ export type Projection =
         | string
         | (string & ['SparqlView', 'View'])
         | (string & ['AggregatedElasticSearchView', 'View'])
-        | (string & ['AggregatedSparqlView', 'View']);
+        | (string & ['AggregatedSparqlView', 'View'])
+        | undefined;
       '@type':
         | string
         | string[]
@@ -117,7 +118,17 @@ const EditTableForm: React.FC<{
     (async () => {
       await initializeAvailableViews();
       table && asyncCallToSetView(table.view);
-      setProjectionId(table?.projection?.['@id']);
+      if (table?.projection) {
+        if (table.projection['@id']) {
+          setProjectionId(table.projection['@id']);
+        } else {
+          /* 
+          when no projection id it means search all of the
+          specified projection type
+          */
+          setProjectionId(`All_${table.projection['@type']}`);
+        }
+      }
     })();
   }, []);
 
@@ -145,14 +156,16 @@ const EditTableForm: React.FC<{
     if (
       viewTypes.includes('SparqlView') ||
       viewTypes.includes('AggregateSparqlView') ||
-      (projection && projection['@type'].includes('SparqlProjection'))
+      (projection && projection['@type'].includes('SparqlProjection')) ||
+      projectionId === 'All_SparqlProjection'
     ) {
       setDataQuery(DEFAULT_SPARQL_QUERY);
       setQueryCopy(DEFAULT_SPARQL_QUERY);
     } else if (
       viewTypes.includes('ElasticSearchView') ||
       viewTypes.includes('AggregateElasticSearchView') ||
-      (projection && projection['@type'].includes('ElasticSearchProjection'))
+      (projection && projection['@type'].includes('ElasticSearchProjection')) ||
+      projectionId === 'All_ElasticSearchProjection'
     ) {
       setDataQuery(DEFAULT_ES_QUERY);
       setQueryCopy(DEFAULT_ES_QUERY);
@@ -184,7 +197,8 @@ const EditTableForm: React.FC<{
         (view['@type']?.includes('ElasticSearchView') ||
           view['@type']?.includes('AggregateElasticSearchView') ||
           (projection &&
-            projection['@type'].includes('ElasticSearchProjection')))
+            projection['@type'].includes('ElasticSearchProjection')) ||
+          projectionId === 'All_ElasticSearchProjection')
       ) {
         const result = await queryES(
           JSON.parse(dataQuery),
@@ -192,7 +206,10 @@ const EditTableForm: React.FC<{
           orgLabel,
           projectLabel,
           viewResource['@id'],
-          projectionId
+          !!projectionId,
+          projectionId === 'All_ElasticSearchProjection'
+            ? undefined
+            : projectionId
         );
 
         const { items } = parseESResults(result);
@@ -218,7 +235,8 @@ const EditTableForm: React.FC<{
           nexus,
           dataQuery,
           viewResource,
-          projectionId
+          !!projectionId,
+          projectionId === 'All_SparqlProjection' ? undefined : projectionId
         );
 
         return result.headerProperties
@@ -267,15 +285,22 @@ const EditTableForm: React.FC<{
       return;
     }
 
-    const projection =
+    let projection =
       view &&
       view.projections &&
       (view.projections as {
-        '@id': string;
+        '@id'?: string;
         '@type': string;
       }[])
         .map(o => ({ '@id': o['@id'], '@type': o['@type'] }))
         .find(o => o['@id'] === projectionId);
+
+    // No @id when we search all projections of a particular type
+    if (projectionId === 'All_ElasticSearchProjection') {
+      projection = { '@type': 'ElasticSearchProjection' };
+    } else if (projectionId === 'All_SparqlProjection') {
+      projection = { '@type': 'ElasticSearchProjection' };
+    }
 
     let data: any;
     if (table && viewName) {
@@ -439,6 +464,28 @@ const EditTableForm: React.FC<{
                   setProjectionId(value);
                 }}
               >
+                {(view.projections as {
+                  '@id': string;
+                  '@type': string;
+                }[]).some(o => o['@type'] === 'ElasticSearchProjection') && (
+                  <Option
+                    key="All_ElasticSearchProjection"
+                    value="All_ElasticSearchProjection"
+                  >
+                    All ElasticSearch
+                  </Option>
+                )}
+                {(view.projections as {
+                  '@id': string;
+                  '@type': string;
+                }[]).some(o => o['@type'] === 'SparqlProjection') && (
+                  <Option
+                    key="All_SparqlProjection"
+                    value="All_SparqlProjection"
+                  >
+                    All Sparql
+                  </Option>
+                )}
                 {(view.projections as {
                   '@id': string;
                   '@type': string;

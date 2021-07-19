@@ -370,6 +370,7 @@ const DataTableContainer: React.FC<DataTableProps> = ({
               type: 'checkbox',
               onChange: tableData.onSelect,
             }}
+            rowKey={r => `tr_${r['@id']}`}
           />
           <Modal
             visible={showEditForm}
