@@ -16,6 +16,7 @@ import DataTableContainer, {
 } from '../../../shared/containers/DataTableContainer';
 import EditTableForm from '../../../shared/components/EditTableForm';
 import STUDIO_CONTEXT from '../../studioLegacy/components/StudioContext';
+
 const DASHBOARD_TYPE = 'StudioDashboard';
 
 const removeDashBoard = async (
@@ -95,7 +96,7 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
 
   const [editingDashboardView, setEditingDashboardView] = React.useState<
     string
-  >(DEFAULT_SPARQL_VIEW_ID);
+  >();
   const [showEditModal, setShowEditModal] = React.useState(false);
   const nexus = useNexusContext();
 
@@ -161,7 +162,7 @@ const DashboardList: React.FunctionComponent<DashboardListProps> = ({
               ...workspaceSource.dashboards,
               {
                 dashboard: dashboard['@id'],
-                view: 'graph',
+                // view: 'graph',
               },
             ],
           }

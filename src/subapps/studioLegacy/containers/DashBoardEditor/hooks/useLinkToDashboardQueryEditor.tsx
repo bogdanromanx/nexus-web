@@ -6,7 +6,7 @@ import { View } from '@bbp/nexus-sdk';
 import { Tooltip } from 'antd';
 
 const useLinkToDashboardQueryEditor = (
-  viewId: string,
+  viewId: string | undefined,
   orgLabel: string,
   projectLabel: string
 ) => {
@@ -18,11 +18,15 @@ const useLinkToDashboardQueryEditor = (
   const [view, setView] = React.useState<View>();
 
   React.useEffect(() => {
-    nexus.View.get(orgLabel, projectLabel, encodeURIComponent(viewId)).then(
-      result => {
-        setView(result);
-      }
-    );
+    if (viewId) {
+      nexus.View.get(orgLabel, projectLabel, encodeURIComponent(viewId)).then(
+        result => {
+          setView(result);
+        }
+      );
+    } else {
+      setView(undefined);
+    }
   }, [viewId]);
 
   const linkQueryEditor = React.useMemo<

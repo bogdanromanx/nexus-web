@@ -21,7 +21,7 @@ export type TableResource = Resource<{
     '@id': string;
   };
   view: string;
-  projection: { '@id'?: string; '@type': string };
+  projection?: { '@id'?: string; '@type': string };
   enableSearch: boolean;
   enableInteractiveRows: boolean;
   enableDownload: boolean;
@@ -135,7 +135,7 @@ export function parseESResults(result: any) {
 
     return {
       ...resource,
-      key: hit._source._self,
+      //key: hit._source._self,
     };
   });
   return { total, items: parsedResult };
@@ -219,12 +219,13 @@ const accessData = async (
       projectLabel,
       view['@id'],
       !!tableResource.projection,
-      tableResource.projection['@id'] === 'All_ElasticSearchProjection'
+      tableResource.projection?.['@id'] === 'All_ElasticSearchProjection'
         ? undefined
-        : tableResource.projection['@id']
+        : tableResource.projection?.['@id']
     );
 
     const { items, total } = parseESResults(result);
+
     const fields =
       columnConfig.map((x, index) => ({
         title: x.name,
@@ -254,9 +255,9 @@ const accessData = async (
       dataQuery,
       view,
       !!tableResource.projection,
-      tableResource.projection['@id'] === 'All_SparqlProjection'
+      tableResource.projection?.['@id'] === 'All_SparqlProjection'
         ? undefined
-        : tableResource.projection['@id']
+        : tableResource.projection?.['@id']
     );
     const headerProperties: {
       title: string;

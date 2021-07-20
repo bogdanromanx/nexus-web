@@ -308,15 +308,6 @@ const WorkspaceForm: React.FunctionComponent<WorkspaceFormProps> = ({
           width={700}
         >
           <Form layout="vertical">
-            {currentDashboards.length > 0 ? (
-              <Form.Item label={'Select View for the Dashboards(s)'}>
-                <SelectViews
-                  views={views}
-                  setView={(view: string) => setViewToAdd(view)}
-                  selectedView={viewToAdd}
-                />
-              </Form.Item>
-            ) : null}
             <Form.Item label={'Add or Remove Dashboards'}>
               <Transfer
                 targetKeys={targetKeys}

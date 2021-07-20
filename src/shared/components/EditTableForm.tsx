@@ -113,11 +113,12 @@ const EditTableForm: React.FC<{
   const initializeAvailableViews = async () =>
     setAvailableViews((await nexus.View.list(orgLabel, projectLabel))._results);
 
-  // set the available views on load
+  // set the available views on load and set view to that specified on TableResource
   React.useEffect(() => {
     (async () => {
       await initializeAvailableViews();
-      table && asyncCallToSetView(table.view);
+      table && (await asyncCallToSetView(table.view));
+
       if (table?.projection) {
         if (table.projection['@id']) {
           setProjectionId(table.projection['@id']);
@@ -128,6 +129,8 @@ const EditTableForm: React.FC<{
           */
           setProjectionId(`All_${table.projection['@type']}`);
         }
+      } else {
+        setProjectionId(undefined);
       }
     })();
   }, []);
@@ -135,6 +138,7 @@ const EditTableForm: React.FC<{
   const asyncCallToSetView = async (viewId: string) => {
     const viewDetails = await getView(viewId);
     setView(viewDetails);
+    setProjectionId(undefined);
   };
 
   const getView = async (viewId: string) =>
@@ -173,7 +177,7 @@ const EditTableForm: React.FC<{
   }, [view, projectionId]);
 
   const queryColumnConfig = useQuery(
-    [viewName, dataQuery],
+    [viewName, dataQuery, projectionId],
     async () => {
       if (!viewName || !dataQuery) return [] as TableColumn[];
 
