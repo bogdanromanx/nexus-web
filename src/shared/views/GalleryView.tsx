@@ -70,10 +70,16 @@ const GalleryView: React.FC = () => {
       if (wrapperRef.current) {
         const currentWrapperRef = wrapperRef.current;
         if (
-          event.target &&
-          !currentWrapperRef.contains(event.target as Node) &&
+          (event.target &&
+            !currentWrapperRef.contains(event.target as Node) &&
+            // @ts-ignore
+            event.target.closest('#app')) ||
           // @ts-ignore
+<<<<<<< HEAD
           event.target.getAttribute('role') !== 'menuitem'
+=======
+          event.target.closest('.ant-drawer-close')
+>>>>>>> ea16f5e... Prevent resource side drawer from closing when shouldn't (#988)
         ) {
           setDrawerVisible(false);
         }
@@ -102,6 +108,7 @@ const GalleryView: React.FC = () => {
           render={routeProps =>
             drawerVisible && (
               <Drawer
+                className="gallery-drawer"
                 maskClosable={false}
                 destroyOnClose={false}
                 visible={true}
