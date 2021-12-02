@@ -63,6 +63,16 @@ const config = [
           },
         },
         {
+          test: /\.(ttf)$/,
+          use: {
+            loader: 'file-loader',
+            options: {
+              outputPath: 'assets/',
+              publicPath: 'assets/',
+            },
+          },
+        },
+        {
           test: /\.(hbs|txt)$/,
           use: 'raw-loader',
         },
@@ -126,6 +136,10 @@ const config = [
             from: 'plugins/',
             to: 'public/plugins/',
             ignore: ['.gitkeep'],
+          },
+          {
+            from: 'node_modules/pdfjs-dist/build/pdf.worker.min.js',
+            to: 'public/pdf.worker.min.js',
           },
         ],
         { debug: true }
