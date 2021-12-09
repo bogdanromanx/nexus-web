@@ -75,11 +75,7 @@ const GalleryView: React.FC = () => {
             // @ts-ignore
             event.target.closest('#app')) ||
           // @ts-ignore
-<<<<<<< HEAD
-          event.target.getAttribute('role') !== 'menuitem'
-=======
           event.target.closest('.ant-drawer-close')
->>>>>>> ea16f5e... Prevent resource side drawer from closing when shouldn't (#988)
         ) {
           setDrawerVisible(false);
         }
