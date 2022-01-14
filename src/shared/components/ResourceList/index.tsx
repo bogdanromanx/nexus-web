@@ -351,6 +351,9 @@ const ResourceListComponent: React.FunctionComponent<{
                 showLessItems: true,
               }}
               renderItem={resource => {
+                if (resource['@type']?.includes('Project')) {
+                  return null;
+                }
                 return (
                   <a
                     href={makeResourceUri(resource['@id'])}
