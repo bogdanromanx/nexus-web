@@ -9,18 +9,17 @@
   position: relative;
   list-style: none;
   position: relative;
-  display: flex;
-  width: auto;
+  display: inline;
   padding: 0;
   margin: 0;
+  vertical-align: middle;
   & > .ellipsis {
     display: inline-block;
     color: @text-color-secondary;
     position: relative;
-    top: -4px;
+    overflow: inherit;
   }
   &.-full {
-    display: block;
     .label {
       max-width: none;
     }

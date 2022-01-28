@@ -1,10 +1,11 @@
 import * as React from 'react';
-import { Col, Row, Tag } from 'antd';
+import { Col, Row } from 'antd';
 import { Link } from 'react-router-dom';
 import { getUsername } from '../../utils';
 import { Resource } from '@bbp/nexus-sdk/lib/types';
 import * as moment from 'moment';
 import FriendlyTimeAgo from '../FriendlyDate';
+import TypesIcon from '../Types/TypesIcon';
 
 const ResourceMetadata: React.FC<{
   resource: Resource;
@@ -41,9 +42,9 @@ const ResourceMetadata: React.FC<{
         <Row>
           <Col>
             <b>Type(s):</b>{' '}
-            {[resource['@type']].flat().map((el, ix) => {
-              return <Tag key={ix}>{el}</Tag>;
-            })}
+            {resource['@type'] && (
+              <TypesIcon type={[resource['@type']].flat()} full={true} />
+            )}
           </Col>
         </Row>
       </Col>
